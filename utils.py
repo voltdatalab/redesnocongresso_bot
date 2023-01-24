@@ -34,7 +34,7 @@ async def text_to_image(texto):
         elif k == 'data':
             insert_html += f"  <small>ATUALIZAÇÃO: {v}</small>  "
         elif k == 'nome':
-            insert_html += f"</br>NOME: <span class='nome'>{v}</span>"
+            insert_html += f"</br>AUTOR/RELATOR: <span class='nome'>{v}</span>"
         elif k == 'tema':
             insert_html += f"</br>TEMA:<span class='tema'>{v}</span>"
         elif k == 'tramitacao':
