@@ -1,9 +1,5 @@
-#main do nocongresso.py
-
 import nocongresso
 import enviar_tweets
-import os
-import hashlib
 
 if __name__ == "__main__":
 
@@ -13,4 +9,3 @@ if __name__ == "__main__":
     except Exception as e:
         print(e)
         
-
