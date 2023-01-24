@@ -22,7 +22,33 @@ import os
 import json
 import xmltodict
 import sys
+import random
 
+# Carrega lista de termos de interesse
+def carrega_termos():
+    df = pd.read_csv("https://docs.google.com/spreadsheets/d/e/2PACX-1vSGZoyvn_NamWZG7DqXInBYsinKaIjuQDJiJ_L4iBsXZO7rdV0lCke817l7nthVzxRImPkQjPzQVI5y/pub?gid=0&single=true&output=csv")
+    search_list = []
+    for i in df.values:
+        search_list.append(i[0])
+    return search_list
+
+# Define termos de interesse
+try:
+    search_list = carrega_termos()
+    print('\\\\\\\\\\\\\\\\\\\\ Termos de interesse carregados: ', len(search_list), ' \\\\\\\\\\\\\\\\\\ \n')
+except Exception as e:
+    print("Erro ao carregar termos de interesse")
+    print(e)
+    search_list = ["redes de internet", "LGPD","Plataformas digitais", "Plataforma digital", "Redes sociais", "Rede social", "Políticas digitais", "Politica digital", "Facebook", "Google", "Twitter", "YouTube", "Bytedance", "Tiktok", "Kwai", "Gettr", "Telegram", "Whatsapp"]
+
+# Transforma em maiúsculas
+search_list = [x.upper() for x in search_list]
+
+# FUNÇÃO DE DELAY
+def delay(inicio = 1, fim = 2):
+    tempo = random.randint(inicio, fim)
+    print("Tempo de espera: %s" % tempo)
+    time.sleep(tempo)
 
 # FUNÇÃO DA CÂMARA DOS DEPUTADOS
 def camara(dia_anterior, mes_anterior, ano_anterior, dia_hoje, mes_hoje, ano_hoje):
@@ -34,7 +60,7 @@ def camara(dia_anterior, mes_anterior, ano_anterior, dia_hoje, mes_hoje, ano_hoj
     # Captura quantas páginas tem esse intervalo de data na API
     parametros = {'formato': 'json', 'itens': 100}
     resposta = requests.get(url, parametros)
-
+    print('Status Code:', resposta.status_code)
     for vez in resposta.json()['links']:
         conta = {"rel": vez['rel'].strip(), "href": vez['href'].strip()}
 
@@ -60,15 +86,18 @@ def camara(dia_anterior, mes_anterior, ano_anterior, dia_hoje, mes_hoje, ano_hoj
     # o que significa comprimento de 139 (inclusive) até 141 (exclusive)
     # E adiciono mais 1 porque o range abaixo sempre vai um menos
     ultima = int(link_ultimo[139:posicao]) + 1
-
+    print("\n-------------------------")
+    print(ultima)
     # Cria lista vazia
     proposicoes = []
 
     # Faz a iteração a partir do número de páginas encontrado
     for pagina in range(1, ultima):
             parametros = {'formato': 'json', 'itens': 100, 'pagina': pagina}
-            print(url)
+            print(url, 'PÁGINA', pagina)
+            delay()
             resposta = requests.get(url, parametros)
+            print('Status Code:', resposta.status_code)
 
     # Captura os dados
             for vez in resposta.json()['dados']:
@@ -93,26 +122,29 @@ def camara(dia_anterior, mes_anterior, ano_anterior, dia_hoje, mes_hoje, ano_hoj
             df_proposicoes_api['ementa_copia'])].copy()
 
     # Coleta autores
-    endpoint = "https://www.camara.leg.br/SitCamaraWS/Proposicoes.asmx/ListarAutoresProposicao?codProposicao="
-
+    endpoint = "https://dadosabertos.camara.leg.br/api/v2/proposicoes/"
     conta = 0
 
+    
     for num, row in df_proposicoes_api_final.iterrows():
         id = row['id']
 
-        url = endpoint + id
+        url = endpoint + str(id) + '/autores'
         print(url)
 
         try:
+            # delay()
             r = requests.get(url)
+            print(r.status_code)
         except requests.exceptions.RequestException as e:
             print("Requests exception: {}".format(e))
+        # print('r.text: ', r.text)
 
-        jsonString = json.dumps(xmltodict.parse(r.text), indent=4)
+        d = r.json()
 
-        d = json.loads(jsonString)
 
-        lista = [d['autores']]
+        lista = [d['nome'] for d in d['dados']]
+        print('Autores Tam:', len(lista))
 
         df_lista = pd.DataFrame(lista)
         df_lista["id"] = id
@@ -123,22 +155,24 @@ def camara(dia_anterior, mes_anterior, ano_anterior, dia_hoje, mes_hoje, ano_hoj
             df_autores = df_autores.append(df_lista)
 
         conta = conta + 1
-    # df_autores.info()
+    # print(df_autores.info())
 
-    seleciona = mulher(df_proposicoes_api_final, 'camara')
+    # mudar o nome da coluna para autores
+    df_autores.rename(columns={0: 'autor'}, inplace=True)
+
+    seleciona = redes(df_proposicoes_api_final, 'congresso')
 
     # Testa se há frases no dia
     tamanho = len(seleciona)
+    print('Tamanho das frases: ', tamanho)
     if tamanho == 0:
         return seleciona
-
 
     # Busca a última situação das proposicoes
     endpoint = "https://dadosabertos.camara.leg.br/api/v2/proposicoes/"
 
     projetos = []
     parametros = {'formato': 'json'}
-
 
     for num, row in seleciona.iterrows():
         id = row['id']
@@ -148,7 +182,9 @@ def camara(dia_anterior, mes_anterior, ano_anterior, dia_hoje, mes_hoje, ano_hoj
 
         # captura os dados de detalhes
         try:
+            delay()
             r = requests.get(url, parametros)
+            print(f'Status Code: {r.status_code}')
         except requests.exceptions.RequestException as e:
             print("Requests exception: {}".format(e))
 
@@ -179,16 +215,23 @@ def camara(dia_anterior, mes_anterior, ano_anterior, dia_hoje, mes_hoje, ano_hoj
     # Inclui autores
     df_proposicoes_situacao_autor = pd.merge(df_proposicoes_situacao.drop_duplicates('id'), df_autores, left_on='id', right_on='id')
     # df_projetos_situacao.info()
-    # df_projetos_situacao.to_csv('resultados/camara/proposicoes_camara_do_dia_mulheres_apenas_ultima_tramitacao.csv', index=False)
-
+    
     df_proposicoes_situacao_autor['ementa_minuscula'] = df_proposicoes_situacao_autor['ementa']
     df_proposicoes_situacao_autor['ementa_minuscula'] = df_proposicoes_situacao_autor['ementa_minuscula'].str.lower()
+    
+    # Deixa apenas 1 autora por proposição
+    df_2 = df_proposicoes_situacao_autor.drop_duplicates(subset=['id'], keep='last')
+    for id, qtd in df_proposicoes_situacao_autor['id'].value_counts().items():
+        if qtd > 1:
+            mask = df_proposicoes_situacao_autor[df_proposicoes_situacao_autor['id'] == id ]
+            nomes = []
+            for nome in mask['autor']:
+                nomes.append(nome)
+            nomes = ", ".join(nomes)
+            df_2.loc[df_2['id'] == id, 'autor'] = nomes
 
-    return df_proposicoes_situacao_autor
-
-
-
-
+    df_2.to_csv('resultados/camara/proposicoes_camara_do_dia_mulheres_apenas_ultima_tramitacao.csv', index=False)
+    return df_2
 
 # FUNÇÃO DO SENADO
 # função para ler todas chaves nas APIs do senado
@@ -205,6 +248,7 @@ def get_by_key(key, value):
 
 
 def senado(ano_anterior, mes_anterior, dia_anterior):
+    print('SENADO-------------\n')
     # Define header padrão
     headers = {"Accept" : "application/json"}
 
@@ -215,8 +259,11 @@ def senado(ano_anterior, mes_anterior, dia_anterior):
     tramitando = []
 
     try:
+        delay()
         r = requests.get(url, headers=headers)
+        print("Status Code: ", r.status_code)
         tramit = r.json()
+
     except requests.exceptions.RequestException as e:
         print("Requests exception: {}".format(e))
 
@@ -267,7 +314,9 @@ def senado(ano_anterior, mes_anterior, dia_anterior):
         print(url)
 
         try:
+            delay()
             r = requests.get(url, headers=headers)
+            print("Status Code :", r.status_code)
         except requests.exceptions.HTTPError as errh:
             print ("Http Error:",errh)
         except requests.exceptions.ConnectionError as errc:
@@ -613,7 +662,9 @@ def senado(ano_anterior, mes_anterior, dia_anterior):
         print(url)
 
         try:
+            delay()
             r = requests.get(url, headers=headers)
+            print('Status Code: ', r.status_code)
         except requests.exceptions.HTTPError as errh:
             print ("Http Error:",errh)
         except requests.exceptions.ConnectionError as errc:
@@ -661,8 +712,9 @@ def senado(ano_anterior, mes_anterior, dia_anterior):
     df_proposicoes['ementa_copia'] = df_proposicoes['ementa_copia'].str.upper()
     df_proposicoes['ementa_minuscula'] = df_proposicoes['EmentaMateria']
     df_proposicoes['ementa_minuscula'] = df_proposicoes['EmentaMateria'].str.lower()
+    df_proposicoes.to_csv('resultados/senado/proposicoes_senado_detalhes_do_dia.csv',index=False)
 
-    seleciona = mulher(df_proposicoes, 'senado')
+    seleciona = redes(df_proposicoes, 'senado')
     # seleciona.info()
 
     return seleciona
@@ -672,16 +724,17 @@ def senado(ano_anterior, mes_anterior, dia_anterior):
 
 
 # FUNÇÃO PARA TERMOS DE INTERESSE
-def mulher(dados, origem):
-    # Define termos de interesse
-    search_list = ["MULHER", "MULHERES", "TRABALHO DOMÉSTICO", "VIOLÊNCIA CONTRA A MULHER", "VIOLÊNCIA DOMÉSTICA", "VIOLÊNCIA DE GÊNERO", "MARIA DA PENHA", "ABORTO", "ABORTAMENTO", "INTERRUPÇÃO DE GRAVIDEZ", "INTERRUPÇÃO DE GESTAÇÃO", "DIREITO REPRODUTIVO", "DIREITOS REPRODUTIVOS", "DIREITO À VIDA", "CONCEPÇÃO", "CONTRACEPÇÃO", "CONTRACEPTIVO", "MISOPROSTOL", "MIFEPRISTONE", "CYTOTEC", "ÚTERO", "GESTAÇÃO", "GRAVIDEZ", "GESTANTE", "SEXO BIOLÓGICO", "PARTO", "VIOLÊNCIA OBSTÉTRICA", "FETO", "BEBÊ", "CRIANÇA", "VIOLÊNCIA SEXUAL", "FEMINICÍDIO", "MORTE DE MULHER", "MORTE DE MULHERES", "HOMICÍDIO DE MULHER", "HOMICÍDIO DE MULHERES", "ASSÉDIO SEXUAL", "ASSÉDIO", "ESTUPRO", "VIOLÊNCIA SEXUAL", "ABUSO SEXUAL", "ESTUPRO DE VULNERÁVEL", "LICENÇA MATERNIDADE", "FEMININO", "MULHER NEGRA", "MULHERES NEGRAS", "MULHERES QUILOMBOLAS", "MULHERES INDÍGENAS", "NEGRAS", "NEGRA", "RACISMO", "RAÇA", "RACIAL", "ABUSO SEXUAL", "MATERNIDADE", "MÃE", "AMAMENTAÇÃO", "SEXUALIDADE", "SEXO", "GÊNERO", "FEMINISMO", "MACHISMO", "GUARDA DE FILHOS", "GUARDA DOS FILHOS", "IGUALDADE DE GÊNERO", "IDENTIDADE DE GÊNERO", "IDEOLOGIA DE GÊNERO", "EDUCAÇÃO SEXUAL", "ESCOLA SEM PARTIDO", "TRANSEXUAL", "TRANSEXUALIDADE", "MULHER TRANS", "MULHERES TRANS", "MUDANÇA DE SEXO", "READEQUAÇÃO SEXUAL", "EXPLORAÇÃO SEXUAL", "PROSTITUIÇÃO", "ORIENTAÇÃO SEXUAL", "HOMOSSEXUAL", "HOMOSSEXUALIDADE", "HOMOSSEXUALISMO",  "LÉSBICA",  "LÉSBICAS",  "DIREITO DOS HOMENS", "EDUCAÇÃO RELIGIOSA",  "DEUS", "RELIGIÃO", "EDUCACÃO DOMICILIAR", "HOMESCHOOLING", "CRECHE",  "EDUCAÇÃO INFANTIL",  "CASAMENTO INFANTIL"]
+def redes(dados, origem):
+    # search_list = ["MULHER", "MULHERES", "TRABALHO DOMÉSTICO", "VIOLÊNCIA CONTRA A MULHER", "VIOLÊNCIA DOMÉSTICA", "VIOLÊNCIA DE GÊNERO", "MARIA DA PENHA", "ABORTO", "ABORTAMENTO", "INTERRUPÇÃO DE GRAVIDEZ", "INTERRUPÇÃO DE GESTAÇÃO", "DIREITO REPRODUTIVO", "DIREITOS REPRODUTIVOS", "DIREITO À VIDA", "CONCEPÇÃO", "CONTRACEPÇÃO", "CONTRACEPTIVO", "MISOPROSTOL", "MIFEPRISTONE", "CYTOTEC", "ÚTERO", "GESTAÇÃO", "GRAVIDEZ", "GESTANTE", "SEXO BIOLÓGICO", "PARTO", "VIOLÊNCIA OBSTÉTRICA", "FETO", "BEBÊ", "CRIANÇA", "VIOLÊNCIA SEXUAL", "FEMINICÍDIO", "MORTE DE MULHER", "MORTE DE MULHERES", "HOMICÍDIO DE MULHER", "HOMICÍDIO DE MULHERES", "ASSÉDIO SEXUAL", "ASSÉDIO", "ESTUPRO", "VIOLÊNCIA SEXUAL", "ABUSO SEXUAL", "ESTUPRO DE VULNERÁVEL", "LICENÇA MATERNIDADE", "FEMININO", "MULHER NEGRA", "MULHERES NEGRAS", "MULHERES QUILOMBOLAS", "MULHERES INDÍGENAS", "NEGRAS", "NEGRA", "RACISMO", "RAÇA", "RACIAL", "ABUSO SEXUAL", "MATERNIDADE", "MÃE", "AMAMENTAÇÃO", "SEXUALIDADE", "SEXO", "GÊNERO", "FEMINISMO", "MACHISMO", "GUARDA DE FILHOS", "GUARDA DOS FILHOS", "IGUALDADE DE GÊNERO", "IDENTIDADE DE GÊNERO", "IDEOLOGIA DE GÊNERO", "EDUCAÇÃO SEXUAL", "ESCOLA SEM PARTIDO", "TRANSEXUAL", "TRANSEXUALIDADE", "MULHER TRANS", "MULHERES TRANS", "MUDANÇA DE SEXO", "READEQUAÇÃO SEXUAL", "EXPLORAÇÃO SEXUAL", "PROSTITUIÇÃO", "ORIENTAÇÃO SEXUAL", "HOMOSSEXUAL", "HOMOSSEXUALIDADE", "HOMOSSEXUALISMO",  "LÉSBICA",  "LÉSBICAS",  "DIREITO DOS HOMENS", "EDUCAÇÃO RELIGIOSA",  "DEUS", "RELIGIÃO", "EDUCACÃO DOMICILIAR", "HOMESCHOOLING", "CRECHE",  "EDUCAÇÃO INFANTIL",  "CASAMENTO INFANTIL"]
     # dados.info()
+    print(search_list)
     mask = dados['ementa_copia'].str.contains('|'.join(search_list))
+
+
     seleciona = dados[mask]
+
+    print(dados[mask])
     return seleciona
-
-
-
 
 # CRIA FRASES
 def frases(dados, origem):
@@ -715,165 +768,22 @@ def frases(dados, origem):
 
         sentencas = {}
 
-        if 'jornada de trabalho' in proposicao_ementa and 'mulheres' in proposicao_ementa:
-            sentencas['texto3/' + str(conta)] = f'{casa}: {proposicao_tipo} {proposicao_numero}/{proposicao_ano}, de autoria de {nome}, fala sobre jornada de trabalho para mulheres e sofreu alterações em sua tramitação. Tramitação: {tramitacao}. Situação: {status}. {endereco}'
-        elif 'jornada de trabalho' in proposicao_ementa and 'mulher' in proposicao_ementa:
-            sentencas['texto4/' + str(conta)] = f'{casa}: {proposicao_tipo} {proposicao_numero}/{proposicao_ano}, de autoria de {nome}, fala sobre jornada de trabalho para mulheres e sofreu alterações em sua tramitação. Tramitação: {tramitacao}. Situação: {status}. {endereco}'
-        elif 'violência contra a mulher' in proposicao_ementa:
-            sentencas['texto5/' + str(conta)] = f'{casa}: {proposicao_tipo} {proposicao_numero}/{proposicao_ano}, de autoria de {nome}, fala sobre violência contra a mulher e sofreu alterações em sua tramitação. Tramitação: {tramitacao}. Situação: {status}. {endereco}'
-        elif 'violência doméstica' in proposicao_ementa:
-            sentencas['texto5_1/' + str(conta)] = f'{casa}: {proposicao_tipo} {proposicao_numero}/{proposicao_ano}, de autoria de {nome}, fala sobre violência doméstica e sofreu alterações em sua tramitação. Tramitação: {tramitacao}. Situação: {status}. {endereco}'
-        elif 'aborto' in proposicao_ementa:
-            sentencas['texto6/' + str(conta)] = f'{casa}: {proposicao_tipo} {proposicao_numero}/{proposicao_ano}, de autoria de {nome}, fala sobre aborto e sofreu alterações em sua tramitação. Tramitação: {tramitacao}. Situação: {status}. {endereco}'
-        elif 'violência sexual' in proposicao_ementa:
-            sentencas['texto7/' + str(conta)] = f'{casa}: {proposicao_tipo} {proposicao_numero}/{proposicao_ano}, de autoria de {nome}, fala sobre violência sexual e sofreu alterações em sua tramitação. Tramitação: {tramitacao}. Situação: {status}. {endereco}'
-        elif 'feminicídio' in proposicao_ementa:
-            sentencas['texto8/' + str(conta)] = f'{casa}: {proposicao_tipo} {proposicao_numero}/{proposicao_ano}, de autoria de {nome}, fala sobre feminicídio e sofreu alterações em sua tramitação. Tramitação: {tramitacao}. Situação: {status}. {endereco}'
-        elif 'assédio sexual' in proposicao_ementa:
-            sentencas['texto9/' + str(conta)] = f'{casa}: {proposicao_tipo} {proposicao_numero}/{proposicao_ano}, de autoria de {nome}, fala sobre assédio sexual e sofreu alterações em sua tramitação. Tramitação: {tramitacao}. Situação: {status}. {endereco}'
-        elif 'estupro' in proposicao_ementa:
-            sentencas['texto10/' + str(conta)] = f'{casa}: {proposicao_tipo} {proposicao_numero}/{proposicao_ano}, de autoria de {nome}, fala sobre estupro e sofreu alterações em sua tramitação. Tramitação: {tramitacao}. Situação: {status}. {endereco}'
-        elif 'licença maternidade' in proposicao_ementa:
-            sentencas['texto11/' + str(conta)] = f'{casa}: {proposicao_tipo} {proposicao_numero}/{proposicao_ano}, de autoria de {nome}, fala sobre licença maternidade e sofreu alterações em sua tramitação. Tramitação: {tramitacao}. Situação: {status}. {endereco}'
-        elif 'mulheres' in proposicao_ementa or 'mulher' in proposicao_ementa or 'feminino' in proposicao_ementa:
-         sentencas['texto12/' + str(conta)] = f'{casa}: {proposicao_tipo} {proposicao_numero}/{proposicao_ano}, de autoria de {nome}, fala sobre mulheres e sofreu alterações em sua tramitação. Tramitação: {tramitacao}. Situação: {status}. {endereco}'
-        elif 'trabalho doméstico' in proposicao_ementa:
-            sentencas['texto13/' + str(conta)] = f'{casa}: {proposicao_tipo} {proposicao_numero}/{proposicao_ano}, de autoria de {nome}, fala sobre trabalho doméstico e sofreu alterações em sua tramitação. Tramitação: {tramitacao}. Situação: {status}. {endereco}'
-        elif 'maria da penha' in proposicao_ementa:
-            sentencas['texto14/' + str(conta)] = f'{casa}: {proposicao_tipo} {proposicao_numero}/{proposicao_ano}, de autoria de {nome}, fala sobre Lei Maria da Penha e sofreu alterações em sua tramitação. Tramitação: {tramitacao}. Situação: {status}. {endereco}'
-        elif 'interrupção da gravidez' in proposicao_ementa or 'interrupção da gestação' in proposicao_ementa or 'interrupção de gestação' in proposicao_ementa or 'interrupção de gravidez' in proposicao_ementa:
-            sentencas['texto15/' + str(conta)] = f'{casa}: {proposicao_tipo} {proposicao_numero}/{proposicao_ano}, de autoria de {nome}, fala sobre interrupção da gravidez e sofreu alterações em sua tramitação. Tramitação: {tramitacao}. Situação: {status}. {endereco}'
-        elif 'direitos reprodutivos' in proposicao_ementa or 'direito reprodutivo' in proposicao_ementa:
-            sentencas['texto16/' + str(conta)] = f'{casa}: {proposicao_tipo} {proposicao_numero}/{proposicao_ano}, de autoria de {nome}, fala sobre direitos reprodutivos e sofreu alterações em sua tramitação. Tramitação: {tramitacao}. Situação: {status}. {endereco}'
-        elif 'direitos à vida' in proposicao_ementa or 'direito à vida' in proposicao_ementa:
-            sentencas['texto17/' + str(conta)] = f'{casa}: {proposicao_tipo} {proposicao_numero}/{proposicao_ano}, de autoria de {nome}, fala sobre direito à vida e sofreu alterações em sua tramitação. Tramitação: {tramitacao}. Situação: {status}. {endereco}'
-        elif 'contracepção' in proposicao_ementa or 'contraceptivos' in proposicao_ementa:
-            sentencas['texto18/' + str(conta)] = f'{casa}: {proposicao_tipo} {proposicao_numero}/{proposicao_ano}, de autoria de {nome}, fala sobre contracepção e sofreu alterações em sua tramitação. Tramitação: {tramitacao}. Situação: {status}. {endereco}'
-        elif 'violência obstétrica' in proposicao_ementa:
-            sentencas['texto19/' + str(conta)] = f'{casa}: {proposicao_tipo} {proposicao_numero}/{proposicao_ano}, de autoria de {nome}, fala sobre violência obstétrica e sofreu alterações em sua tramitação. Tramitação: {tramitacao}. Situação: {status}. {endereco}'
-        elif 'misoprostol' in proposicao_ementa or 'mifepristone' in proposicao_ementa or 'cytotec' in proposicao_ementa:
-            sentencas['texto20/' + str(conta)] = f'{casa}: {proposicao_tipo} {proposicao_numero}/{proposicao_ano}, de autoria de {nome}, fala sobre medicamentos abortivos e sofreu alterações em sua tramitação. Tramitação: {tramitacao}. Situação: {status}. {endereco}'
-        elif 'gestação' in proposicao_ementa or 'gravidez' in proposicao_ementa:
-            sentencas['texto21/' + str(conta)] = f'{casa}: {proposicao_tipo} {proposicao_numero}/{proposicao_ano}, de autoria de {nome}, fala sobre gravidez e sofreu alterações em sua tramitação. Tramitação: {tramitacao}. Situação: {status}. {endereco}'
-        elif 'violência familiar' in proposicao_ementa:
-            sentencas['texto22/' + str(conta)] = f'{casa}: {proposicao_tipo} {proposicao_numero}/{proposicao_ano}, de autoria de {nome}, fala sobre violência familiar e sofreu alterações em sua tramitação. Tramitação: {tramitacao}. Situação: {status}. {endereco}'
-        elif 'morte de mulher' in proposicao_ementa or 'morte de mulheres' in proposicao_ementa:
-            sentencas['texto23/' + str(conta)] = f'{casa}: {proposicao_tipo} {proposicao_numero}/{proposicao_ano}, de autoria de {nome}, fala sobre morte de mulheres e sofreu alterações em sua tramitação. Tramitação: {tramitacao}. Situação: {status}. {endereco}'
-        elif 'homicídio de mulher' in proposicao_ementa or 'homicídio de mulheres' in proposicao_ementa:
-            sentencas['texto24/' + str(conta)] = f'{casa}: {proposicao_tipo} {proposicao_numero}/{proposicao_ano}, de autoria de {nome}, fala sobre homicídio de mulheres e sofreu alterações em sua tramitação. Tramitação: {tramitacao}. Situação: {status}. {endereco}'
-        elif 'assédio' in proposicao_ementa:
-            sentencas['texto25/' + str(conta)] = f'{casa}: {proposicao_tipo} {proposicao_numero}/{proposicao_ano}, de autoria de {nome}, fala sobre assédio e sofreu alterações em sua tramitação. Tramitação: {tramitacao}. Situação: {status}. {endereco}'
-        elif 'estupro de vulnerável' in proposicao_ementa:
-            sentencas['texto26/' + str(conta)] = f'{casa}: {proposicao_tipo} {proposicao_numero}/{proposicao_ano}, de autoria de {nome}, fala sobre estupro de vulnerável e sofreu alterações em sua tramitação. Tramitação: {tramitacao}. Situação: {status}. {endereco}'
-        elif 'abuso sexual' in proposicao_ementa:
-            sentencas['texto27/' + str(conta)] = f'{casa}: {proposicao_tipo} {proposicao_numero}/{proposicao_ano}, de autoria de {nome}, fala sobre abuso sexual e sofreu alterações em sua tramitação. Tramitação: {tramitacao}. Situação: {status}. {endereco}'
-        elif 'mulher negra' in proposicao_ementa or 'mulheres negras' in proposicao_ementa:
-            sentencas['texto28/' + str(conta)] = f'{casa}: {proposicao_tipo} {proposicao_numero}/{proposicao_ano}, de autoria de {nome}, fala sobre mulheres negras e sofreu alterações em sua tramitação. Tramitação: {tramitacao}. Situação: {status}. {endereco}'
-        elif 'maternidade' in proposicao_ementa or 'mãe' in proposicao_ementa:
-            sentencas['texto29/' + str(conta)] = f'{casa}: {proposicao_tipo} {proposicao_numero}/{proposicao_ano}, de autoria de {nome}, fala sobre maternidade e sofreu alterações em sua tramitação. Tramitação: {tramitacao}. Situação: {status}. {endereco}'
-        elif 'amamentação' in proposicao_ementa or 'leite materno' in proposicao_ementa:
-            sentencas['texto30/' + str(conta)] = f'{casa}: {proposicao_tipo} {proposicao_numero}/{proposicao_ano}, de autoria de {nome}, fala sobre amamentação e sofreu alterações em sua tramitação. Tramitação: {tramitacao}. Situação: {status}. {endereco}'
-        elif 'feminismo' in proposicao_ementa:
-            sentencas['texto31/' + str(conta)] = f'{casa}: {proposicao_tipo} {proposicao_numero}/{proposicao_ano}, de autoria de {nome}, fala sobre feminismo e sofreu alterações em sua tramitação. Tramitação: {tramitacao}. Situação: {status}. {endereco}'
-        elif 'identidade de gênero' in proposicao_ementa:
-            sentencas['texto32/' + str(conta)] = f'{casa}: {proposicao_tipo} {proposicao_numero}/{proposicao_ano}, de autoria de {nome}, fala sobre identidade de gênero e sofreu alterações em sua tramitação. Tramitação: {tramitacao}. Situação: {status}. {endereco}'
-        elif 'machismo' in proposicao_ementa:
-            sentencas['texto33/' + str(conta)] = f'{casa}: {proposicao_tipo} {proposicao_numero}/{proposicao_ano}, de autoria de {nome},fala sobre machismo e sofreu alterações em sua tramitação. Tramitação: {tramitacao}. Situação: {status}. {endereco}'
-        elif 'guarda de filhos' in proposicao_ementa or 'guarda dos filhos' in proposicao_ementa:
-            sentencas['texto34/' + str(conta)] = f'{casa}: {proposicao_tipo} {proposicao_numero}/{proposicao_ano}, de autoria de {nome}, fala sobre guarda dos filhos e sofreu alterações em sua tramitação. Tramitação: {tramitacao}. Situação: {status}. {endereco}'
-        elif 'igualdade de gênero' in proposicao_ementa:
-            sentencas['texto35/' + str(conta)] = f'{casa}: {proposicao_tipo} {proposicao_numero}/{proposicao_ano}, de autoria de {nome}, fala sobre igualdade de gênero e sofreu alterações em sua tramitação. Tramitação: {tramitacao}. Situação: {status}. {endereco}'
-        elif 'educação sexual' in proposicao_ementa:
-            sentencas['texto36/' + str(conta)] = f'{casa}: {proposicao_tipo} {proposicao_numero}/{proposicao_ano}, de autoria de {nome}, fala sobre educação sexual e sofreu alterações em sua tramitação. Tramitação: {tramitacao}. Situação: {status}. {endereco}'
-        elif 'ideologia de gênero' in proposicao_ementa:
-            sentencas['texto37/' + str(conta)] = f'{casa}: {proposicao_tipo} {proposicao_numero}/{proposicao_ano}, de autoria de {nome}, fala sobre ideologia de gênero e sofreu alterações em sua tramitação. Tramitação: {tramitacao}. Situação: {status}. {endereco}'
-        elif 'transexualidade' in proposicao_ementa or 'transexual' in proposicao_ementa or 'mulher trans' in proposicao_ementa or 'mulheres trans' in proposicao_ementa:
-            sentencas['texto38/' + str(conta)] = f'{casa}: {proposicao_tipo} {proposicao_numero}/{proposicao_ano}, de autoria de {nome}, fala sobre transexualidade e sofreu alterações em sua tramitação. Tramitação: {tramitacao}. Situação: {status}. {endereco}'
-        elif 'mudança de sexo' in proposicao_ementa or 'readequação sexual' in proposicao_ementa:
-            sentencas['texto39/' + str(conta)] = f'{casa}: {proposicao_tipo} {proposicao_numero}/{proposicao_ano}, de autoria de {nome}, fala sobre readequação sexual e sofreu alterações em sua tramitação. Tramitação: {tramitacao}. Situação: {status}. {endereco}'
-        elif 'exploração sexual' in proposicao_ementa:
-            sentencas['texto40/' + str(conta)] = f'{casa}: {proposicao_tipo} {proposicao_numero}/{proposicao_ano}, de autoria de {nome}, fala sobre exploração sexual e sofreu alterações em sua tramitação. Tramitação: {tramitacao}. Situação: {status}. {endereco}'
-        elif 'prostituição' in proposicao_ementa:
-            sentencas['texto41/' + str(conta)] = f'{casa}: {proposicao_tipo} {proposicao_numero}/{proposicao_ano}, de autoria de {nome}, fala sobre prostituição e sofreu alterações em sua tramitação. Tramitação: {tramitacao}. Situação: {status}. {endereco}'
-        elif 'racismo' in proposicao_ementa and 'mulher' in proposicao_ementa:
-            sentencas['texto42/' + str(conta)] = f'{casa}: {proposicao_tipo} {proposicao_numero}/{proposicao_ano}, de autoria de {nome}, fala sobre racismo e mulheres e sofreu alterações em sua tramitação. Tramitação: {tramitacao}. Situação: {status}. {endereco}'
-        elif 'racismo' in proposicao_ementa and 'mulheres' in proposicao_ementa:
-            sentencas['texto43/' + str(conta)] = f'{casa}: {proposicao_tipo} {proposicao_numero}/{proposicao_ano}, de autoria de {nome}, fala sobre racismo e mulheres e sofreu alterações em sua tramitação. Tramitação: {tramitacao}. Situação: {status}. {endereco}'
-        elif 'sexualidade' in proposicao_ementa:
-            sentencas['texto44/' + str(conta)] = f'{casa}: {proposicao_tipo} {proposicao_numero}/{proposicao_ano}, de autoria de {nome}, fala sobre sexualidade e sofreu alterações em sua tramitação. Tramitação: {tramitacao}. Situação: {status}. {endereco}'
-        elif 'sexo' in proposicao_ementa and 'mulher' in proposicao_ementa:
-            sentencas['texto45/' + str(conta)] = f'{casa}: {proposicao_tipo} {proposicao_numero}/{proposicao_ano}, de autoria de {nome}, fala sobre sexualidade e sofreu alterações em sua tramitação. Tramitação: {tramitacao}. Situação: {status}. {endereco}'
-        elif 'sexo' in proposicao_ementa and 'mulheres' in proposicao_ementa:
-            sentencas['texto46/' + str(conta)] = f'{casa}: {proposicao_tipo} {proposicao_numero}/{proposicao_ano}, de autoria de {nome}, fala sobre sexualidade e sofreu alterações em sua tramitação. Tramitação: {tramitacao}. Situação: {status}. {endereco}'
-        elif 'deus' in proposicao_ementa and 'mulher' in proposicao_ementa:
-            sentencas['texto47/'  + str(conta)] = f'{casa}: {proposicao_tipo} {proposicao_numero}/{proposicao_ano}, de autoria de {nome}, fala sobre religiosidade e sofreu alterações em sua tramitação. Tramitação: {tramitacao}. Situação: {status}. {endereco}'
-        elif 'deus' in proposicao_ementa and 'mulheres' in proposicao_ementa:
-            sentencas['texto48/'  + str(conta)] = f'{casa}: {proposicao_tipo} {proposicao_numero}/{proposicao_ano}, de autoria de {nome}, fala sobre religiosidade e sofreu alterações em sua tramitação. Tramitação: {tramitacao}. Situação: {status}. {endereco}'
-        elif 'educação religiosa' in proposicao_ementa and 'mulher' in proposicao_ementa:
-            sentencas['texto49/'  + str(conta)] = f'{casa}: {proposicao_tipo} {proposicao_numero}/{proposicao_ano}, de autoria de {nome}, fala sobre religiosidade e sofreu alterações em sua tramitação. Tramitação: {tramitacao}. Situação: {status}. {endereco}'
-        elif 'educação religiosa' in proposicao_ementa and 'mulheres' in proposicao_ementa:
-            sentencas['texto50/'  + str(conta)] = f'{casa}: {proposicao_tipo} {proposicao_numero}/{proposicao_ano}, de autoria de {nome}, fala sobre religiosidade e sofreu alterações em sua tramitação. Tramitação: {tramitacao}. Situação: {status}. {endereco}'
-        elif 'religião' in proposicao_ementa and 'mulher' in proposicao_ementa:
-            sentencas['texto51/'  + str(conta)] = f'{casa}: {proposicao_tipo} {proposicao_numero}/{proposicao_ano}, de autoria de {nome}, fala sobre religiosidade e sofreu alterações em sua tramitação. Tramitação: {tramitacao}. Situação: {status}. {endereco}'
-        elif 'religião' in proposicao_ementa and 'mulheres' in proposicao_ementa:
-            sentencas['texto52/'  + str(conta)] = f'{casa}: {proposicao_tipo} {proposicao_numero}/{proposicao_ano}, de autoria de {nome}, fala sobre religiosidade e sofreu alterações em sua tramitação. Tramitação: {tramitacao}. Situação: {status}. {endereco}'
-        elif 'violência de gênero' in proposicao_ementa:
-            sentencas['texto53/' + str(conta)] = f'{casa}: {proposicao_tipo} {proposicao_numero}/{proposicao_ano}, de autoria de {nome}, fala sobre violência de gênero e sofreu alterações em sua tramitação. Tramitação: {tramitacao}. Situação: {status}. {endereco}'
-        elif 'parto' in proposicao_ementa:
-            sentencas['texto54/' + str(conta)] = f'{casa}: {proposicao_tipo} {proposicao_numero}/{proposicao_ano}, de autoria de {nome}, fala sobre parto e sofreu alterações em sua tramitação. Tramitação: {tramitacao}. Situação: {status}. {endereco}'
-        elif 'homeschooling' in proposicao_ementa:
-            sentencas['texto55/' + str(conta)] = f'{casa}: {proposicao_tipo} {proposicao_numero}/{proposicao_ano}, de autoria de {nome}, fala sobre educação domiciliar e sofreu alterações em sua tramitação. Tramitação: {tramitacao}. Situação: {status}. {endereco}'
-        elif 'educação domiciliar' in proposicao_ementa:
-            sentencas['texto56/' + str(conta)] = f'{casa}: {proposicao_tipo} {proposicao_numero}/{proposicao_ano}, de autoria de {nome}, fala sobre educação domiciliar e sofreu alterações em sua tramitação. Tramitação: {tramitacao}. Situação: {status}. {endereco}'
-        elif 'educação infantil' in proposicao_ementa:
-            sentencas['texto57/' + str(conta)] = f'{casa}: {proposicao_tipo} {proposicao_numero}/{proposicao_ano}, de autoria de {nome}, fala sobre educação infantil e sofreu alterações em sua tramitação. Tramitação: {tramitacao}. Situação: {status}. {endereco}'
-        elif 'creches' in proposicao_ementa:
-            sentencas['texto58/' + str(conta)] = f'{casa}: {proposicao_tipo} {proposicao_numero}/{proposicao_ano}, de autoria de {nome}, fala sobre educação infantil e sofreu alterações em sua tramitação. Tramitação: {tramitacao}. Situação: {status}. {endereco}'
-        elif 'casamento infantil' in proposicao_ementa:
-            sentencas['texto59/' + str(conta)] = f'{casa}: {proposicao_tipo} {proposicao_numero}/{proposicao_ano}, de autoria de {nome}, fala sobre casamento infantil e sofreu alterações em sua tramitação. Tramitação: {tramitacao}. Situação: {status}. {endereco}'
-        elif 'homossexual' in proposicao_ementa:
-            sentencas['texto60/' + str(conta)] = f'{casa}: {proposicao_tipo} {proposicao_numero}/{proposicao_ano}, de autoria de {nome}, fala sobre orientação sexual e sofreu alterações em sua tramitação. Tramitação: {tramitacao}. Situação: {status}. {endereco}'
-        elif 'homossexualidade' in proposicao_ementa:
-            sentencas['texto61/' + str(conta)] = f'{casa}: {proposicao_tipo} {proposicao_numero}/{proposicao_ano}, de autoria de {nome}, fala sobre orientação sexual e sofreu alterações em sua tramitação. Tramitação: {tramitacao}. Situação: {status}. {endereco}'
-        elif 'homossexualismo' in proposicao_ementa:
-            sentencas['texto62/' + str(conta)] = f'{casa}: {proposicao_tipo} {proposicao_numero}/{proposicao_ano}, de autoria de {nome}, fala sobre orientação sexual e sofreu alterações em sua tramitação. Tramitação: {tramitacao}. Situação: {status}. {endereco}'
-        elif 'orientação sexual' in proposicao_ementa:
-            sentencas['texto63/' + str(conta)] = f'{casa}: {proposicao_tipo} {proposicao_numero}/{proposicao_ano}, de autoria de {nome}, fala sobre orientação sexual e sofreu alterações em sua tramitação. Tramitação: {tramitacao}. Situação: {status}. {endereco}'
-        elif 'opção sexual' in proposicao_ementa:
-            sentencas['texto64/' + str(conta)] = f'{casa}: {proposicao_tipo} {proposicao_numero}/{proposicao_ano}, de autoria de {nome}, fala sobre orientação sexual e sofreu alterações em sua tramitação. Tramitação: {tramitacao}. Situação: {status}. {endereco}'
-        elif 'criança' in proposicao_ementa:
-            sentencas['texto65/' + str(conta)] = f'{casa}: {proposicao_tipo} {proposicao_numero}/{proposicao_ano}, de autoria de {nome}, fala sobre crianças e sofreu alterações em sua tramitação. Tramitação: {tramitacao}. Situação: {status}. {endereco}'
-        elif 'sexo biológico' in proposicao_ementa:
-            sentencas['texto66/' + str(conta)] = f'{casa}: {proposicao_tipo} {proposicao_numero}/{proposicao_ano}, de autoria de {nome}, fala sobre sexo biológico e sofreu alterações em sua tramitação. Tramitação: {tramitacao}. Situação: {status}. {endereco}'
-        elif 'gênero' in proposicao_ementa:
-            sentencas['texto67/' + str(conta)] = f'{casa}: {proposicao_tipo} {proposicao_numero}/{proposicao_ano}, de autoria de {nome}, fala sobre gênero e sofreu alterações em sua tramitação. Tramitação: {tramitacao}. Situação: {status}. {endereco}'
-        elif 'gestante' in proposicao_ementa:
-            sentencas['texto68/' + str(conta)] = f'{casa}: {proposicao_tipo} {proposicao_numero}/{proposicao_ano}, de autoria de {nome}, fala sobre gravidez e sofreu alterações em sua tramitação. Tramitação: {tramitacao}. Situação: {status}. {endereco}'
+        search_list_lower = [ s.lower() for s in search_list]
 
-        # print(sentencas)
+        for s in range(len(search_list_lower)):
+            if search_list_lower[s] in proposicao_ementa:
+                sentencas['texto'+str(s)+'/' + str(conta)] = f'{casa}: {proposicao_tipo} {proposicao_numero}/{proposicao_ano}, de autoria de {nome}, fala sobre o tema {search_list_lower[s].upper()} e sofreu alterações em sua tramitação.\n🕙 Tramitação: {tramitacao}.\n↪️ Situação: {status}.\n🔗 {endereco}'
+
         # Testa se dicionario veio vazio
         res = not bool(sentencas)
         if res == False:
             lista_sentencas.append(sentencas)
 
-            # print(lista_sentencas)
         conta = conta + 1
 
-        # print(lista_sentencas)
     df_lista_sentencas = pd.DataFrame(lista_sentencas)
-    # df_lista_sentencas.info()
-    # df_lista_sentencas.to_csv('teste_sen2.csv',index=False)
-            # df_lista_sentencas.info()
-            # print(df_lista_sentencas)
-
-    #with open('dados/tweets.json', 'w') as outfile:
-    #    json.dump(lista_sentencas, outfile)
-
 
     return df_lista_sentencas
-
-
-
 
 GLOBAL_lista_para_tweetar = []
 
@@ -889,10 +799,6 @@ def tweeta(dados):
         texto = df[i][0]
         GLOBAL_lista_para_tweetar.append( { "tweet": f'{texto}' })
 
-
-
-
-
 # DEFINIR BLOCO DE EXECUÇÃO PRINCIPAL
 def main():
 
@@ -900,17 +806,28 @@ def main():
     dia_anterior = (datetime.now() - timedelta(1)).strftime('%d')
     mes_anterior = (datetime.now() - timedelta(1)).strftime('%m')
     ano_anterior = (datetime.now() - timedelta(1)).strftime('%Y')
+    # dia_anterior = "01"
+    # mes_anterior = "12"
+    # ano_anterior = "2022"
+    print(dia_anterior, mes_anterior, ano_anterior)
+
 
     # Captura o dia, mês e ano de amanha (assim nao preciso mudar o codigo para remover o parametro data_ate)
     now = datetime.now()
     dia_hoje = (datetime.now() + timedelta(1)).strftime('%d')
     mes_hoje = (datetime.now() + timedelta(1)).strftime('%m')
     ano_hoje = (datetime.now() + timedelta(1)).strftime('%Y')
+    # dia_hoje = "31"
+    # mes_hoje = "12"
+    # ano_hoje = "2022"
+
+    print(dia_hoje, mes_hoje, ano_hoje)
+
 
     # Captura proposicoes Camara
     prop_cam = camara(dia_anterior,mes_anterior,ano_anterior,dia_hoje,mes_hoje,ano_hoje)
     tamanho = len(prop_cam.index)
-    print("Quantidade de proposicoes de interesse na Camara: ", tamanho)
+    print("\n\nQuantidade de proposicoes de interesse na Camara: ", tamanho)
     prop_cam.info()
 
     # Cria frases da Camara
@@ -951,9 +868,4 @@ if __name__ == '__main__':
     with open('dados/tweets.json', 'w') as outfile:
         json.dump(GLOBAL_lista_para_tweetar, outfile)
 
-
-# In[ ]:
-
-
-
-
+    
