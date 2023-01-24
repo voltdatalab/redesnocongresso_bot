@@ -7,7 +7,7 @@ def norm(text):
     return text
 
 def removeNone(text):
-    newText = text.replace( '\n↪️ Situação: None.', '').replace('\n🕙 Tramitação: None.', '').replace(', de autoria de None,', '')
+    newText = text.replace( '\n🕙 Última atualização: None.', '').replace( '\n↪️ Situação: None.', '').replace('\n🔈 Tramitação: None.', '').replace(', de autoria de None,', '')
     return newText
 
 def repNameV1(m):
@@ -52,6 +52,15 @@ def truncLongName(text):
         newText = re.sub(r"de autoria de.*sofreu alterações em sua tramitação\. ", '', text)
 
     if (len(newText) > 280):
-        newText = text.replace('\n🕙', '').replace('\n↪️', '').replace('\n🔗', '')
+        newText = newText.replace("fala sobre o tema", "fala sobre")
+
+    if (len(newText) > 280):
+        newText = newText.replace("e sofreu alterações em sua tramitação", "teve alterações na tramitação")
+
+    if (len(newText) > 280):
+        newText = text.replace('🕙', '').replace('↪️', '').replace('🔗', '').replace('🔈', '')
+
+    if (len(newText) > 280):
+        newText = text.replace('\n', '')
 
     return newText

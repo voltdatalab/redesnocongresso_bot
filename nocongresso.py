@@ -1,18 +1,15 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[11]:
-
-
 # -*- coding: utf-8
-# AZMina (https://azmina.com.br/)
-# Reinaldo Chaves (reichaves@gmail.gom)
-# Bárbara Libório
+# Código Original de (https://azmina.com.br/) Reinaldo Chaves (reichaves@gmail.gom) & Bárbara Libório
 # Script para ler as APIs da Câmara e Senado
 # Procurar proposições do dia anterior e corrente
 # Filtrar aquelas de interesse para os direitos da mulheres
 # Criar frases com os resumos da tramitação
 # E tweetar no @elasnocongresso
+
+# Modificação Núcleo - Michel Gomes (michel@voltdata.info)
 
 import requests
 import pandas as pd
@@ -20,9 +17,38 @@ import time
 from datetime import datetime, timedelta
 import os
 import json
-import xmltodict
-import sys
 import random
+
+from dotenv import load_dotenv
+load_dotenv()
+
+def cria_link(url_antiga):
+    headers = {
+        'accept': 'application/json',
+        'X-Api-Key': os.getenv("API_SHLINK"),
+        'Content-Type': 'application/json',
+    }
+
+    json_data = {
+        'longUrl': url_antiga,
+        'tags': [
+            'legislaredes_bot',
+        ],
+        'crawlable': True,
+        'forwardQuery': True,
+        'findIfExists': True,
+        'shortCodeLength': 5,
+    }
+
+    response = requests.post('https://nucle.ooo/rest/v3/short-urls', headers=headers, json=json_data)
+    print("LINK, ", url_antiga)
+    print(response.status_code)
+    try:
+        if len(response.json()['shortUrl']) > 0:
+            return response.json()['shortUrl']
+    except Exception as e:
+        print("ERRO", e)
+        return url_antiga
 
 # Carrega lista de termos de interesse
 def carrega_termos():
@@ -152,7 +178,10 @@ def camara(dia_anterior, mes_anterior, ano_anterior, dia_hoje, mes_hoje, ano_hoj
         if conta == 0:
             df_autores = df_lista.copy()
         else:
-            df_autores = df_autores.append(df_lista)
+            # df_autores = df_autores.append(df_lista)
+            
+            df_autores = pd.concat([df_autores, df_lista], ignore_index=True)
+
 
         conta = conta + 1
     # print(df_autores.info())
@@ -230,7 +259,7 @@ def camara(dia_anterior, mes_anterior, ano_anterior, dia_hoje, mes_hoje, ano_hoj
             nomes = ", ".join(nomes)
             df_2.loc[df_2['id'] == id, 'autor'] = nomes
 
-    df_2.to_csv('resultados/camara/proposicoes_camara_do_dia_mulheres_apenas_ultima_tramitacao.csv', index=False)
+    df_2.to_csv('resultados/camara/proposicoes_camara_do_dia.csv', index=False)
     return df_2
 
 # FUNÇÃO DO SENADO
@@ -752,6 +781,7 @@ def frases(dados, origem):
                     status = row['DescricaoSituacao']
                     endereco = row['UrlTexto']
                     nome = row['NomeAutor']
+                    data_status = None
                     casa = 'SENADO'
         elif origem == 'camara':
                     proposicao_ementa = row['ementa_minuscula']
@@ -764,7 +794,12 @@ def frases(dados, origem):
                     nome = str(row['autor']).replace("[", "")
                     nome = nome.replace("]", "")
                     nome = nome.replace("'", "")
+                    data_status = row['statusProposicao_dataHora']
+                    data_status = datetime.strptime(data_status, '%Y-%m-%dT%H:%M')
+                    data_status = data_status.strftime('%d/%m/%Y %H:%M')
                     casa = 'CÂMARA'
+
+        endereco = cria_link(endereco)
 
         sentencas = {}
 
@@ -772,7 +807,7 @@ def frases(dados, origem):
 
         for s in range(len(search_list_lower)):
             if search_list_lower[s] in proposicao_ementa:
-                sentencas['texto'+str(s)+'/' + str(conta)] = f'{casa}: {proposicao_tipo} {proposicao_numero}/{proposicao_ano}, de autoria de {nome}, fala sobre o tema {search_list_lower[s].upper()} e sofreu alterações em sua tramitação.\n🕙 Tramitação: {tramitacao}.\n↪️ Situação: {status}.\n🔗 {endereco}'
+                sentencas['texto'+str(s)+'/' + str(conta)] = f'{casa}: {proposicao_tipo} {proposicao_numero}/{proposicao_ano}, de autoria de {nome}, fala sobre o tema {search_list_lower[s].upper()} e sofreu alterações em sua tramitação.\n🕙 Última atualização: {data_status}.\n🔈 Tramitação: {tramitacao}.\n↪️ Situação: {status}.\n🔗 {endereco}'
 
         # Testa se dicionario veio vazio
         res = not bool(sentencas)

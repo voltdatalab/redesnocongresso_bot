@@ -47,6 +47,13 @@ def main():
 
         for tweet in tweets:
             text = tweet['tweet']
+
+            result = hashlib.md5(text.encode())
+            fileName = f'{dirName}/{result.hexdigest()}'
+            if os.path.exists( fileName ):
+                print ("\n/////--- tweet '", text, "' ja foi tweetado")
+                continue
+
             try:
 
                 print ("tweetando '", text, "'...\n\n")
@@ -54,6 +61,10 @@ def main():
                 if response[0]['id'] == None:
                     print("Erro ao enviar tweet")
                     continue
+
+                with open(fileName, 'w') as outfile:
+                    json.dump(response[0], outfile)
+
             except Exception as e:
                 print("Erro ao enviar tweet")
                 print(e)
