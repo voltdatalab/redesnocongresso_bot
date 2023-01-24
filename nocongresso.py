@@ -807,7 +807,7 @@ def frases(dados, origem):
 
         for s in range(len(search_list_lower)):
             if search_list_lower[s] in proposicao_ementa:
-                sentencas['texto'+str(s)+'/' + str(conta)] = f'{casa}: {proposicao_tipo} {proposicao_numero}/{proposicao_ano}, de autoria de {nome}, fala sobre o tema {search_list_lower[s].upper()} e sofreu alterações em sua tramitação.\n🕙 Última atualização: {data_status}.\n🔈 Tramitação: {tramitacao}.\n↪️ Situação: {status}.\n🔗 {endereco}'
+                sentencas['texto'+str(s)+'/' + str(conta)] = f'{casa}: {proposicao_tipo} {proposicao_numero}/{proposicao_ano}.\n🕙 Última atualização: {data_status}.\n📕 Nome: {nome}.\n💡 Tema: {search_list_lower[s].upper()}.\n🔈 Tramitação: {tramitacao}.\n↪️ Situação: {status}.\n🔗 {endereco}'
 
         # Testa se dicionario veio vazio
         res = not bool(sentencas)

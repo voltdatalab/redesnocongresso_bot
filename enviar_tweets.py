@@ -6,15 +6,18 @@ import os       # ler variaveis de ambiente
 import time     # sleep
 import normalize_tweets
 from dotenv import load_dotenv # ler variaveis de ambiente do arquivo .env
-def main():
-    load_dotenv()
+import utils
+load_dotenv()
+import asyncio
+
+async def main():
 
     if not os.path.exists('dados/.dummy'):
         print("Faltando pasta ./dados/ (arquivo .dummy nao existe)")
         raise
 
     if not os.path.exists('dados/tweets.json'):
-        print("Faltando arquivo ./dados/tweets.json [execute primeiro o script @elasnacamara.py")
+        print("Faltando arquivo ./dados/tweets.json [execute primeiro o script @nocongresso.py")
         raise
 
     if not os.getenv("CONSUMER_KEY"):
@@ -43,7 +46,16 @@ def main():
         access_token= os.getenv("ACCESS_KEY")
         access_token_secret= os.getenv("ACCESS_SECRET")
 
-        client = tweepy.Client(consumer_key= consumer_key,consumer_secret= consumer_secret,access_token= access_token,access_token_secret= access_token_secret)
+        auth = tweepy.OAuth1UserHandler(
+        consumer_key,
+        consumer_secret,
+        access_token,
+        access_token_secret
+        )
+
+        api = tweepy.API(auth)
+
+        # client = tweepy.Client(consumer_key= consumer_key,consumer_secret= consumer_secret,access_token= access_token,access_token_secret= access_token_secret)
 
         for tweet in tweets:
             text = tweet['tweet']
@@ -57,13 +69,12 @@ def main():
             try:
 
                 print ("tweetando '", text, "'...\n\n")
-                response = client.create_tweet(text=normalize_tweets.norm(text))
-                if response[0]['id'] == None:
-                    print("Erro ao enviar tweet")
-                    continue
+                await utils.text_to_image(text)
+                response = api.update_status_with_media(status=normalize_tweets.norm(text), filename='html/out.png')
+                # response = api.update_status()
 
                 with open(fileName, 'w') as outfile:
-                    json.dump(response[0], outfile)
+                    json.dump(response._json, outfile)
 
             except Exception as e:
                 print("Erro ao enviar tweet")
@@ -81,5 +92,7 @@ def main():
                 time.sleep(300) # espera 5 minutos
 
 if __name__ == "__main__":
-    main()
+
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(main())
     print ("Todos tweets enviados com sucesso!")

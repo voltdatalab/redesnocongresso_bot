@@ -1,0 +1,95 @@
+@import url('https://fonts.googleapis.com/css2?family=Barlow:wght@300;400;800&display=swap');
+body { 
+    background: #241f21; 
+    font-family: Barlow;
+    font-size: 28px;
+    line-height: 42px;
+    color: #eeeeee;
+}
+p {
+    margin-left: 2em;
+    /* margin-right: 2em; */
+    width: 450px;
+    margin-top: 1.5em;
+    margin-bottom: 1em;
+    font-weight: normal;
+}
+
+h6 {
+    margin-left: 3em;
+    width: 450px;
+    margin-top: -1.0em;
+    margin-bottom: 1em;
+    font-weight: normal;
+
+}
+
+small {
+  line-height: 50px;
+  color:#919191;
+  font-size: 16px;
+}
+b {
+  text-transform: uppercase;
+  font-weight: bold;
+  color:#ffffff;
+  text-decoration: underline;
+}
+img {
+  width:160px;
+  margin-left: 2em;
+  vertical-align: -1em;
+}
+img.emoji {
+   height: 1em;
+   width: 1em;
+   margin: 0 .05em 0 .1em;
+   vertical-align: -0.1em;
+}
+.valor{
+  color: #faca0c;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+.tema{
+  font-size: 24px;
+  background-color: #0b0b0b;
+ 
+  color: #F52818;
+  padding: 2px 15px 2px 15px;
+  border-radius: 10px;
+  text-transform: uppercase;
+  font-weight: bold;
+}
+
+small{
+  /* line-height: 50px;
+  color:#d8d8d8;
+  font-size: 16px; */
+  /* Under line */
+  /* text-decoration: underline; */
+}
+.nome{
+  font-size: 24px;
+  background-color: #0b0b0b;
+  color: #4A9DF7;
+  padding: 2px 15px 2px 15px;
+  border-radius: 10px;
+  text-transform: uppercase;
+  font-weight: bold;
+}
+.redeytgoogle{
+  font-size: 24px;
+  background-color: #0b0b0b;
+  color: #F5A418;
+  padding: 2px 15px 2px 15px;
+  border-radius: 10px;
+  text-transform: uppercase;
+  font-weight: bold;
+}
+url {
+  margin-left: 5em;
+  vertical-align: 3em;
+  font-size: 13px;
+  color: #6B6B6B;
+}
