@@ -30,7 +30,7 @@ small {
   font-size: 16px;
 }
 b {
-  text-transform: uppercase;
+  /* text-transform: uppercase; */
   font-weight: bold;
   color:#ffffff;
   text-decoration: underline;

@@ -27,6 +27,16 @@ Deve exibir: `pip 9.0.1 from /usr/lib/python3/dist-packages (python 3.6)` ou sem
 
     $ python3 -m pip install -r requirements.txt
 
+
+# Versão com o Imgkit (Método Novo de Screenshot + Veloz)
+- Execute o comando `sudo yum -y install wget`
+- Depois baixe o pacote `wget https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6-1/wkhtmltox-0.12.6-1.amazonlinux2.x86_64.rpm`
+- Instale o pacote `sudo yum install ./wkhtmltox-0.12.6-1.amazonlinux2.x86_64.rpm`
+
+Para o imgKit funcionar corretamente ao ser rodado pelo crontab na EC2 devemos modificar o caminho dos arquivos _binários_.
+- Descrubra onde esta o arquivo digitando `whereis wkhtmltoimage`
+- Copie eles com o comando `sudo cp /usr/local/bin/wkhtmlto* /usr/bin/`
+
 # executando
 
 Para baixar as proposições, basta executar o arquivo `elasnocongresso.py`, o resultado dos tweets será salvo em ./dados/tweets.json, você pode visualizar este arquivo para conferir o contéudo.

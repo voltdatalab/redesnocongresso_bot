@@ -42,7 +42,7 @@ async def text_to_image(texto):
         elif k == 'situacao':
             insert_html += f"</br>SITUAÇÃO: <span class='redeytgoogle'>{v}</span>"
         elif k == 'url':
-            new_link = v.replace('HTTPS://', '')
+            new_link = v.replace('https://', '')
             insert_html += f"</br> Link: <b>{new_link}</b>"
     
     
