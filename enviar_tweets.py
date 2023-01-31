@@ -85,6 +85,7 @@ async def main():
 
                 res = api.media_upload("html/out.png")
                 text_no_emoji = normalize_tweets.removeEmoji(text)
+                text_no_emoji = normalize_tweets.removeNone(text_no_emoji)
                 api.create_media_metadata(res.media_id, alt_text=titulo+'\n\n'+text_no_emoji)
                 status = api.update_status(media_ids = [res.media_id], status=normalize_tweets.norm(text))
              
