@@ -3,6 +3,7 @@ import imgkit
 
 import os
 import locale
+
 locale.setlocale(locale.LC_ALL, 'pt_BR.UTF-8')
 async def text_to_image(texto, descricao):
 

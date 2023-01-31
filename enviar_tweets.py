@@ -7,6 +7,7 @@ import time     # sleep
 import normalize_tweets
 from dotenv import load_dotenv # ler variaveis de ambiente do arquivo .env
 import utils
+import ia
 load_dotenv()
 import asyncio
 
@@ -58,9 +59,14 @@ async def main():
         # client = tweepy.Client(consumer_key= consumer_key,consumer_secret= consumer_secret,access_token= access_token,access_token_secret= access_token_secret)
 
         for tweet in tweets:
+            
             text = tweet['tweet']
             titulo = tweet['titulo']
 
+            try:
+                titulo = ia.summarize_text(titulo)
+            except Exception as e:
+                print("Erro ao resumir a descrição: ", e)
 
             result = hashlib.md5(text.encode())
             fileName = f'{dirName}/{result.hexdigest()}'
@@ -71,6 +77,9 @@ async def main():
             try:
 
                 print ("tweetando '", text, "'...\n\n")
+
+                
+
                 await utils.text_to_image(text, titulo)
                 # response = api.update_status_with_media(status=normalize_tweets.norm(text), filename='html/out.png')
 
