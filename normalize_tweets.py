@@ -7,7 +7,11 @@ def norm(text):
     return text
 
 def removeNone(text):
-    newText = text.replace( '\n🕙 Última atualização: None.', '').replace( '\n↪️ Situação: None.', '').replace('\n🔈 Tramitação: None.', '').replace(', de autoria de None,', '')
+    newText = text.replace('\n📕 Nome: None.', '').replace( '\n🕙 Última atualização: None.', '').replace( '\n↪️ Situação: None.', '').replace('\n🔈 Tramitação: None.', '').replace(', de autoria de None,', '')
+    return newText
+
+def removeEmoji(text):
+    newText = text.replace('📕', '').replace( '🕙', '').replace( '↪️', '').replace('🔈', '').replace('🔗', '').replace('💡', '')
     return newText
 
 def repNameV1(m):
