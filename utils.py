@@ -4,7 +4,7 @@ import imgkit
 import os
 import locale
 locale.setlocale(locale.LC_ALL, 'pt_BR.UTF-8')
-async def text_to_image(texto):
+async def text_to_image(texto, descricao):
 
     titulo = texto.split('\n')[0]
     url = texto.split('\n')[-1].replace('🔗 ', '')
@@ -34,6 +34,8 @@ async def text_to_image(texto):
         elif k == 'data':
             insert_html += f"  <small>ATUALIZAÇÃO: {v}</small>  "
         elif k == 'nome':
+            if len(v) > 130:
+                v = v[:127] + '...'
             insert_html += f"</br>AUTOR/RELATOR: <span class='nome'>{v}</span>"
         elif k == 'tema':
             insert_html += f"</br>TEMA:<span class='tema'>{v}</span>"
@@ -46,6 +48,11 @@ async def text_to_image(texto):
             insert_html += f"</br> Link: <b>{new_link}</b>"
     
     
+    if len(descricao) < 130:
+        descricao = f'<div class="titulo"> {descricao} </div>'
+    else:
+        descricao = f'<div class="titulo"> {descricao[:127]}... </div>'
+
     html = """
 
     <!doctype html>
@@ -61,11 +68,12 @@ async def text_to_image(texto):
     <body>
     <p>
     {}
+    {}
     <img src='landing-nucleo_logo-header.png'><br>
     <url>nucleo.jor.br/legislaredes</url>
     </body>
     </html>
-    """.format("{twemoji.parse(document.body);}", insert_html)
+    """.format("{twemoji.parse(document.body);}", insert_html, descricao)
 
     with open('html/tmp.html', 'w') as f:
         f.write(html)

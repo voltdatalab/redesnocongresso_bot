@@ -22,6 +22,12 @@ import random
 from dotenv import load_dotenv
 load_dotenv()
 
+def salva_json_antigos():
+    with open('dados/tweets.json') as f:
+        tweets = json.load(f)
+        with open('dados/t_salvos.json', 'w') as f:
+            json.dump(tweets, f, indent=2)
+
 def cria_link(url_antiga):
     headers = {
         'accept': 'application/json',
@@ -746,6 +752,12 @@ def senado(ano_anterior, mes_anterior, dia_anterior):
     seleciona = redes(df_proposicoes, 'senado')
     # seleciona.info()
 
+    # tamanho = len(seleciona)
+
+    # print('Tamanho das frases: ', tamanho)
+    # if tamanho == 0:
+    #     return seleciona
+
     return seleciona
 
 
@@ -807,8 +819,13 @@ def frases(dados, origem):
 
         for s in range(len(search_list_lower)):
             if search_list_lower[s] in proposicao_ementa:
-                sentencas['texto'+str(s)+'/' + str(conta)] = f'{casa}: {proposicao_tipo} {proposicao_numero}/{proposicao_ano}.\n🕙 Última atualização: {data_status}.\n📕 Nome: {nome}.\n💡 Tema: {search_list_lower[s].upper()}.\n🔈 Tramitação: {tramitacao}.\n↪️ Situação: {status}.\n🔗 {endereco}'
+                # sentencas['texto'+str(s)+'/' + str(conta)] = f'{casa}: {proposicao_tipo} {proposicao_numero}/{proposicao_ano}.\n🕙 Última atualização: {data_status}.\n📕 Nome: {nome}.\n💡 Tema: {search_list_lower[s].upper()}.\n🔈 Tramitação: {tramitacao}.\n↪️ Situação: {status}.\n🔗 {endereco}'
+                texto = f'{casa}: {proposicao_tipo} {proposicao_numero}/{proposicao_ano}.\n🕙 Última atualização: {data_status}.\n📕 Nome: {nome}.\n💡 Tema: {search_list_lower[s].upper()}.\n🔈 Tramitação: {tramitacao}.\n↪️ Situação: {status}.\n🔗 {endereco}'
+                # adicionar proposicao_ementa e texto dentro de sentencas
+                sentencas['texto'+str(s)+'/' + str(conta)] = {'tweet': texto,'titulo':proposicao_ementa}
 
+
+    
         # Testa se dicionario veio vazio
         res = not bool(sentencas)
         if res == False:
@@ -832,7 +849,7 @@ def tweeta(dados):
     # Itera nas colunas de cada frase
     for i in columns:
         texto = df[i][0]
-        GLOBAL_lista_para_tweetar.append( { "tweet": f'{texto}' })
+        GLOBAL_lista_para_tweetar.append( { "tweet": texto['tweet'], "titulo":texto['titulo'].title() })
 
 # DEFINIR BLOCO DE EXECUÇÃO PRINCIPAL
 def main():

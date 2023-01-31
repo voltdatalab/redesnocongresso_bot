@@ -59,6 +59,8 @@ async def main():
 
         for tweet in tweets:
             text = tweet['tweet']
+            titulo = tweet['titulo']
+
 
             result = hashlib.md5(text.encode())
             fileName = f'{dirName}/{result.hexdigest()}'
@@ -69,12 +71,15 @@ async def main():
             try:
 
                 print ("tweetando '", text, "'...\n\n")
-                await utils.text_to_image(text)
-                response = api.update_status_with_media(status=normalize_tweets.norm(text), filename='html/out.png')
-                # response = api.update_status()
+                await utils.text_to_image(text, titulo)
+                # response = api.update_status_with_media(status=normalize_tweets.norm(text), filename='html/out.png')
 
+                res = api.media_upload("html/out.png")
+                api.create_media_metadata(res.media_id, alt_text=titulo+'\n\n'+text)
+                status = api.update_status(media_ids = [res.media_id], status=normalize_tweets.norm(text))
+             
                 with open(fileName, 'w') as outfile:
-                    json.dump(response._json, outfile)
+                    json.dump(status._json, outfile)
 
             except Exception as e:
                 print("Erro ao enviar tweet")
