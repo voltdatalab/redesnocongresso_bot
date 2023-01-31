@@ -811,8 +811,12 @@ def frases(dados, origem):
                     data_status = data_status.strftime('%d/%m/%Y %H:%M')
                     casa = 'CÂMARA'
 
-        if len(nome) > 80:
-            nome = nome[:80] + '...'
+        try:
+            if len(nome) > 80:
+                nome = nome[:80] + '...'
+        except Exception as e:
+            print('Erro ao cortar nome do autor.')
+            print(e)
 
         endereco = cria_link(endereco)
 
