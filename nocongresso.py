@@ -811,6 +811,9 @@ def frases(dados, origem):
                     data_status = data_status.strftime('%d/%m/%Y %H:%M')
                     casa = 'CÂMARA'
 
+        if len(nome) > 80:
+            nome = nome[:80] + '...'
+
         endereco = cria_link(endereco)
 
         sentencas = {}

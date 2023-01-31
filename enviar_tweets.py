@@ -63,16 +63,16 @@ async def main():
             text = tweet['tweet']
             titulo = tweet['titulo']
 
-            try:
-                titulo = ia.summarize_text(titulo)
-            except Exception as e:
-                print("Erro ao resumir a descrição: ", e)
-
             result = hashlib.md5(text.encode())
             fileName = f'{dirName}/{result.hexdigest()}'
             if os.path.exists( fileName ):
                 print ("\n/////--- tweet '", text, "' ja foi tweetado")
                 continue
+            
+            try:
+                titulo = ia.summarize_text(titulo)
+            except Exception as e:
+                print("Erro ao resumir a descrição: ", e)
 
             try:
 
