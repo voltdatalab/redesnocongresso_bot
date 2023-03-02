@@ -1,4 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Barlow:wght@300;400;800&display=swap');
+
 body { 
     background: #241f21; 
     font-family: Barlow;
@@ -62,13 +63,6 @@ img.emoji {
   font-weight: bold;
 }
 
-small{
-  /* line-height: 50px;
-  color:#d8d8d8;
-  font-size: 16px; */
-  /* Under line */
-  /* text-decoration: underline; */
-}
 .nome{
   font-size: 24px;
   background-color: #0b0b0b;
@@ -91,6 +85,12 @@ small{
   margin-left: 2em;
   
 
+}
+
+.titulo small{
+  line-height: 50px;
+  color:#919191;
+  font-size: 12px;
 }
 
 .redeytgoogle{

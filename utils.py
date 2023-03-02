@@ -50,9 +50,9 @@ async def text_to_image(texto, descricao):
     
     
     if len(descricao) < 130:
-        descricao = f'<div class="titulo"> {descricao} </div>'
+        descricao = f'<div class="titulo"> {descricao} </br><small>*Texto resumido por um modelo de aprendizado de máquina</small></div>'
     else:
-        descricao = f'<div class="titulo"> {descricao[:127]}... </div>'
+        descricao = f'<div class="titulo"> {descricao[:127]}... </br><small>*Texto resumido por um modelo de aprendizado de máquina</small></div>'
 
     html = """
 
