@@ -14,7 +14,7 @@
 import requests
 import pandas as pd
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, date, timedelta
 import os
 import json
 import random
@@ -24,6 +24,8 @@ from zipfile import ZipFile, BadZipFile
 from inlabs import inlabs_dou 
 from bs4 import BeautifulSoup
 
+from shlink import cria_link
+
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -32,35 +34,6 @@ def salva_json_antigos():
         tweets = json.load(f)
         with open('dados/t_salvos.json', 'w') as f:
             json.dump(tweets, f, indent=2)
-
-def cria_link(url_antiga):
-    headers = {
-        'accept': 'application/json',
-        'X-Api-Key': os.getenv("API_SHLINK"),
-        'Content-Type': 'application/json',
-    }
-
-    json_data = {
-        'longUrl': url_antiga,
-        'tags': [
-            'legislaredes_bot',
-            'dou',
-        ],
-        'crawlable': True,
-        'forwardQuery': True,
-        'findIfExists': True,
-        'shortCodeLength': 5,
-    }
-
-    response = requests.post('https://nucle.ooo/rest/v3/short-urls', headers=headers, json=json_data)
-    print("LINK, ", url_antiga)
-    print(response.status_code)
-    try:
-        if len(response.json()['shortUrl']) > 0:
-            return response.json()['shortUrl']
-    except Exception as e:
-        print("ERRO", e)
-        return url_antiga
 
 # Carrega lista de termos de interesse
 def carrega_termos():
@@ -88,50 +61,67 @@ def delay(inicio = 1, fim = 2):
     print("Tempo de espera: %s" % tempo)
     time.sleep(tempo)
 
-# FUNÇÃO DO DIARIO OFICIAL DA UNIAO
+# ROTINA DO DIARIO OFICIAL DA UNIAO
 def dou():
-    today = datetime.now()
-    today_str = today.strftime('%Y-%m-%d')
-    yesterday_str = (today - timedelta(days=1)).strftime('%Y-%m-%d')
+    today = date.today()
+    get_dou_xml(today, today)
+    return get_info_from_xml()
 
-    for i in range(0, 1):
-        date = today-timedelta(days=i)
-        date_str = date.strftime('%Y-%m-%d')
-        inlabs_dou(date)
+# OBTEM ARQUIVOS XML DOS DOU 
+def get_dou_xml(from_date: date, to_date: date):
+    day = to_date
+    while day >= from_date:
+        inlabs_dou(day)
 
         # Descompacta arquivos obtidos pelo inlabs
-        for filename in glob.glob(f'./{date_str}-*.zip', recursive=False):
+        day_str = day.strftime('%Y-%m-%d')
+        for filename in glob.glob(f'./{day_str}-*.zip', recursive=False):
             try:
                 with ZipFile(filename, 'r') as zip_ref:
-                    zip_ref.extractall('dou/'+date_str)
+                    zip_ref.extractall('dou/'+day_str)
             except BadZipFile:
                 print(f'Arquivo .zip com erro: {filename}')
             finally:
                 os.remove(filename)
+        day -= timedelta(days=1)
 
+# RETORNA JSON COM DADOS 
+def get_info_from_xml():
     diarios = []
     for filename in glob.glob(r'dou/*/*.xml'):
         with open(filename, 'r') as f:
             soup = BeautifulSoup(f.read(), 'xml')
             article = soup.find('article')
-            article_id = article['id']
-            nome = article['name']
-            data = article['pubDate']
-            link = article['pdfPage']
-            identifica = " ".join(soup.find('Identifica').contents)
-            
             internal_soup = BeautifulSoup(soup.find('Texto').text, 'html.parser')
+
             texto = internal_soup.find_all(text=True, recursive=True)
             texto = "\n".join(texto)
 
+            identifica = soup.find('Identifica').text.strip()
+
             dicionario = {
-                    'id': article_id,
-                    'nome': nome,
-                    'data': data,
-                    # 'link': cria_link(link),
-                    'link': link,
-                    'identifica': identifica,
-                    'texto': texto
+                    'id': article['id'],
+                    'nome': article['name'],
+                    'id_oficio': article.get('idOficio'),
+                    'nome_pub': article['pubName'],
+                    'tipo_art': article.get('artType'),
+                    'data': datetime.strptime(article['pubDate'], '%d/%m/%Y'),
+                    'classe_art': article.get('artClass'),
+                    'categoria_art': article.get('artCategory'),
+                    'tam_art': article.get('artSize'),
+                    'notas_art': article.get('artNotes'),
+                    'num_pagina': article.get('numberPage'),
+                    #'link': cria_link(article['pdfPage'], dou=True),
+                    'link': article['pdfPage'],
+                    'num_edicao': article.get('editionNumber'),
+                    'tipo_destaque': article.get('highlightType'),
+                    'prioridade_destaque': article.get('highlightPriority'),
+                    'destaque': article.get('highlight'),
+                    'img_destaque': article.get('highlightimage'),
+                    'nome_img_destaque': article.get('highlightimagename'),
+                    'id_materia': article.get('idMateria'),
+                    'texto': texto,
+                    'identifica': identifica
             }
             diarios.append(dicionario)
 
@@ -149,71 +139,6 @@ def redes(dados, origem):
     print(dados[mask])
     return seleciona
 
-# CRIA FRASES
-def frases(dados, origem):
-    lista_sentencas = []
-
-    conta = 1
-    for num, row in dados.iterrows():
-
-        if origem == 'senado':
-                    proposicao_ementa = row['ementa_minuscula']
-                    proposicao_tipo = row['SiglaSubtipoMateria']
-                    proposicao_numero = row['NumeroMateria']
-                    proposicao_ano = row['AnoMateria']
-                    tramitacao = row['NomeLocal']
-                    status = row['DescricaoSituacao']
-                    endereco = row['UrlTexto']
-                    nome = row['NomeAutor']
-                    data_status = None
-                    casa = 'SENADO'
-        elif origem == 'camara':
-                    proposicao_ementa = row['ementa_minuscula']
-                    proposicao_tipo = row['siglaTipo']
-                    proposicao_numero = row['numero']
-                    proposicao_ano = row['ano']
-                    tramitacao = row['statusProposicao_descricaoTramitacao']
-                    status = row['statusProposicao_descricaoSituacao']
-                    endereco = row['urlInteiroTeor']
-                    nome = str(row['autor']).replace("[", "")
-                    nome = nome.replace("]", "")
-                    nome = nome.replace("'", "")
-                    data_status = row['statusProposicao_dataHora']
-                    data_status = datetime.strptime(data_status, '%Y-%m-%dT%H:%M')
-                    data_status = data_status.strftime('%d/%m/%Y %H:%M')
-                    casa = 'CÂMARA'
-
-        try:
-            if len(nome) > 80:
-                nome = nome[:80] + '...'
-        except Exception as e:
-            print('Erro ao cortar nome do autor.')
-            print(e)
-
-        endereco = cria_link(endereco)
-
-        sentencas = {}
-
-        search_list_lower = [ s.lower() for s in search_list]
-
-        for s in range(len(search_list_lower)):
-            if search_list_lower[s] in proposicao_ementa:
-                texto = f'{casa}: {proposicao_tipo} {proposicao_numero}/{proposicao_ano}.\n🕙 Última atualização: {data_status}.\n📕 Nome: {nome}.\n💡 Tema: {search_list_lower[s].upper()}.\n🔈 Tramitação: {tramitacao}.\n↪️ Situação: {status}.\n🔗 {endereco}'
-                # adicionar proposicao_ementa e texto dentro de sentencas
-                sentencas['texto'+str(s)+'/' + str(conta)] = {'tweet': texto,'titulo':proposicao_ementa}
-
-
-    
-        # Testa se dicionario veio vazio
-        res = not bool(sentencas)
-        if res == False:
-            lista_sentencas.append(sentencas)
-
-        conta = conta + 1
-
-    df_lista_sentencas = pd.DataFrame(lista_sentencas)
-
-    return df_lista_sentencas
 
 GLOBAL_lista_para_tweetar = []
 
@@ -254,6 +179,3 @@ def main():
 # executar bloco principal
 if __name__ == '__main__':
     main()
-
-    with open('dados/tweets-dou.json', 'w') as outfile:
-        json.dump(GLOBAL_lista_para_tweetar, outfile)
