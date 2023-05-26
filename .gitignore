@@ -2,3 +2,7 @@ dados/*
 __pycache__
 logs/*
 .env
+.venv/
+dou/
+
+*.csv

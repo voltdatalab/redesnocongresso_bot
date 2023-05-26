@@ -19,6 +19,8 @@ import os
 import json
 import random
 
+from shlink import cria_url
+
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -27,34 +29,6 @@ def salva_json_antigos():
         tweets = json.load(f)
         with open('dados/t_salvos.json', 'w') as f:
             json.dump(tweets, f, indent=2)
-
-def cria_link(url_antiga):
-    headers = {
-        'accept': 'application/json',
-        'X-Api-Key': os.getenv("API_SHLINK"),
-        'Content-Type': 'application/json',
-    }
-
-    json_data = {
-        'longUrl': url_antiga,
-        'tags': [
-            'legislaredes_bot',
-        ],
-        'crawlable': True,
-        'forwardQuery': True,
-        'findIfExists': True,
-        'shortCodeLength': 5,
-    }
-
-    response = requests.post('https://nucle.ooo/rest/v3/short-urls', headers=headers, json=json_data)
-    print("LINK, ", url_antiga)
-    print(response.status_code)
-    try:
-        if len(response.json()['shortUrl']) > 0:
-            return response.json()['shortUrl']
-    except Exception as e:
-        print("ERRO", e)
-        return url_antiga
 
 # Carrega lista de termos de interesse
 def carrega_termos():

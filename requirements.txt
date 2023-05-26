@@ -5,3 +5,5 @@ pandas>=1.0.1
 Pillow==9.4.0
 imgkit==1.2.2
 openai
+beautifulsoup4
+lxml
